@@ -254,9 +254,11 @@ async def handle_message(message: Message):
 @dp.message(Command(commands=["clear_zachety"]))
 async def clear_zachety(message: types.Message):
     """
-    Удаляет все зачёты из списка и файла zachety.txt
+    Очищает все зачёты и сохраняет пустой список в zachety.txt
     """
+    global zachety_list
     load_zachety()  # загружаем актуальный список
+
     if not zachety_list:
         await message.reply("❌ Список зачётов уже пустой.")
         return
