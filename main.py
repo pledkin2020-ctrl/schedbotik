@@ -52,6 +52,46 @@ def save_schedule():
                 f.write(f"{day}: {lessons}\n")
             f.write("\n")
 
+@dp.message(Command(commands=["clear_zachety"]))
+async def clear_zachety(message: types.Message):
+    """
+    Очищает все зачёты и сохраняет пустой список в zachety.txt
+    """
+    global zachety_list
+    load_zachety()  # загружаем актуальный список
+
+    if not zachety_list:
+        await message.reply("❌ Список зачётов уже пустой.")
+        return
+
+    zachety_list.clear()  # очищаем список
+    save_zachety()         # сохраняем пустой список в файл
+    await message.reply("✅ Все зачёты удалены из списка.")
+
+@dp.message(Command(commands=["clear_schedule"]))
+async def clear_schedule(message: types.Message):
+    """
+    Очищает все расписания (числитель и знаменатель) и сохраняет в schedule.txt
+    """
+    load_schedule()  # загружаем текущее расписание
+
+    # Очищаем все дни в обеих неделях
+    for week_type in schedule:
+        for day in schedule[week_type]:
+            schedule[week_type][day] = ""
+
+    save_schedule()  # сохраняем пустое расписание в файл
+    await message.reply("✅ Всё расписание очищено.")
+
+@dp.message(Command(commands=["help"]))
+async def send_help(message: types.Message):
+    help_text = (
+        "🤖 Доступные команды бота:\n\n"
+        "/schedule <числитель/знаменатель> — показать расписание на неделю\n"
+        "/zachety — показать список зачётов\n"
+        "/help — показать это сообщение\n\n"
+    )
+    await message.reply(help_text)
 
 @dp.message(Command(commands=["update_schedule"]))
 async def update_schedule(message: types.Message):
@@ -251,46 +291,7 @@ async def handle_message(message: Message):
     else:
         await message.reply(f"❌ Расписание на {date} не найдено")
 
-@dp.message(Command(commands=["clear_zachety"]))
-async def clear_zachety(message: types.Message):
-    """
-    Очищает все зачёты и сохраняет пустой список в zachety.txt
-    """
-    global zachety_list
-    load_zachety()  # загружаем актуальный список
 
-    if not zachety_list:
-        await message.reply("❌ Список зачётов уже пустой.")
-        return
-
-    zachety_list.clear()  # очищаем список
-    save_zachety()         # сохраняем пустой список в файл
-    await message.reply("✅ Все зачёты удалены из списка.")
-
-@dp.message(Command(commands=["clear_schedule"]))
-async def clear_schedule(message: types.Message):
-    """
-    Очищает все расписания (числитель и знаменатель) и сохраняет в schedule.txt
-    """
-    load_schedule()  # загружаем текущее расписание
-
-    # Очищаем все дни в обеих неделях
-    for week_type in schedule:
-        for day in schedule[week_type]:
-            schedule[week_type][day] = ""
-
-    save_schedule()  # сохраняем пустое расписание в файл
-    await message.reply("✅ Всё расписание очищено.")
-
-@dp.message(Command(commands=["help"]))
-async def send_help(message: types.Message):
-    help_text = (
-        "🤖 Доступные команды бота:\n\n"
-        "/schedule <числитель/знаменатель> — показать расписание на неделю\n"
-        "/zachety — показать список зачётов\n"
-        "/help — показать это сообщение\n\n"
-    )
-    await message.reply(help_text)
 
 async def main():
     await dp.start_polling(bot)
