@@ -36,6 +36,63 @@ schedule = {
     }
 }
 
+#система оповещений
+chats_to_notify = []
+
+def load_chats():
+    global chats_to_notify
+    chats_to_notify = []
+    try:
+        with open("chats.txt", "r", encoding="utf-8") as f:
+            chats_to_notify = [int(line.strip()) for line in f if line.strip()]
+    except FileNotFoundError:
+        chats_to_notify = []
+
+def save_chats():
+    with open("chats.txt", "w", encoding="utf-8") as f:
+        for chat_id in chats_to_notify:
+            f.write(f"{chat_id}\n")
+
+
+
+@dp.message(Command(commands=["broadcast"]))
+async def broadcast_message(message: types.Message):
+    """
+    Рассылает текст во все зарегистрированные чаты
+    Формат: /broadcast текст сообщения
+    """
+    load_chats()
+    text = message.text.replace("/broadcast", "").strip()
+    if not text:
+        await message.reply("❌ Укажи текст сообщения после команды.\nПример:\n/broadcast Привет всем!")
+        return
+
+    sent_count = 0
+    for chat_id in chats_to_notify:
+        try:
+            await bot.send_message(chat_id, text)
+            sent_count += 1
+        except Exception as e:
+            print(f"Не удалось отправить сообщение в чат {chat_id}: {e}")
+
+    await message.reply(f"✅ Сообщение отправлено в {sent_count} чат(ов).")
+
+@dp.message(Command(commands=["register_chat"]))
+async def register_chat(message: types.Message):
+    """
+    Регистрирует текущий чат для рассылки сообщений и ежедневного расписания
+    """
+    chat_id = message.chat.id
+    load_chats()
+    if chat_id in chats_to_notify:
+        await message.reply("✅ Этот чат уже зарегистрирован для рассылки.")
+        return
+
+    chats_to_notify.append(chat_id)
+    save_chats()
+    await message.reply("✅ Чат успешно зарегистрирован для рассылки сообщений!")
+
+
 # Список зачётов
 zachety_list = [
     "Тестовый зачёт",
