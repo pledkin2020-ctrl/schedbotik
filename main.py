@@ -11,6 +11,15 @@ TOKEN = "8599743564:AAFYd1AoPNiPlqkzENvMYnjOR2JEXTUQczY"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+async def main():
+    # Загружаем данные при старте бота
+    load_schedule()   # загружает расписание из schedule.txt
+    load_zachety()    # загружает список зачётов из zachety.txt
+
+    print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
+    await dp.start_polling(bot)
+
+
 # Пример расписания
 schedule = {
     "Числитель": {
@@ -32,11 +41,22 @@ zachety_list = [
     "Тестовый зачёт",
 ]
 
+def save_schedule():
+    """
+    Сохраняет текущий словарь schedule в файл schedule.txt
+    """
+    with open("schedule.txt", "w", encoding="utf-8") as f:
+        for week_type in ["числитель", "знаменатель"]:
+            f.write(f"[{week_type}]\n")
+            for day, lessons in schedule[week_type].items():
+                f.write(f"{day}: {lessons}\n")
+            f.write("\n")
+
 
 @dp.message(Command(commands=["update_schedule"]))
 async def update_schedule(message: types.Message):
     """
-    Обновляет расписание сразу на всю неделю.
+    Обновляет расписание на всю неделю через чат и сохраняет в schedule.txt
     Формат:
     /update_schedule <числитель/знаменатель>
     день: предмет1, предмет2
@@ -47,6 +67,10 @@ async def update_schedule(message: types.Message):
     /update_schedule числитель
     понедельник: Математика, Физика
     вторник: История, Химия
+    среда: Русский язык, Биология
+    четверг: География, Литература
+    пятница: Английский, Информатика
+    суббота: Физкультура
     """
     text = message.text.replace("/update_schedule", "").strip()
 
@@ -64,6 +88,9 @@ async def update_schedule(message: types.Message):
         await message.reply("❌ Недопустимый тип недели. Используй 'числитель' или 'знаменатель'.")
         return
 
+    # Загружаем текущее расписание из файла перед обновлением
+    load_schedule()
+
     # Обрабатываем строки с днями недели
     updated_days = []
     for line in lines[1:]:
@@ -76,51 +103,40 @@ async def update_schedule(message: types.Message):
             schedule[week_type][day] = lessons
             updated_days.append(day.capitalize())
 
+    # Сохраняем изменения в файл
+    save_schedule()
+
     if updated_days:
         await message.reply(f"✅ Расписание для {week_type} обновлено на следующие дни:\n" + ", ".join(updated_days))
     else:
-        await message.reply("❌ Не найдено корректных дней для обновления. Проверь формат команд.")
+        await message.reply("❌ Не найдено корректных дней для обновления. Проверь формат команды.")
 
-@dp.message(Command(commands=["del_zachet"]))
-async def del_zachet(message: types.Message):
+# ------------------ Работа с файлом зачётов ------------------
+
+def load_zachety():
     """
-    Удаляет предмет/зачёт из списка zachety_list через сообщение.
-    Использование: /del_zachet <название зачёта>
+    Загружает список зачётов из zachety.txt
     """
-    # Убираем команду из текста
-    text = message.text.replace("/del_zachet", "").strip()
+    global zachety_list
+    zachety_list = []
+    try:
+        with open("zachety.txt", "r", encoding="utf-8") as f:
+            zachety_list = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print("Файл zachety.txt не найден, создается пустой список")
+        zachety_list = []
 
-    if not text:
-        await message.reply("❌ Укажи название зачёта после команды. Например:\n/del_zachet Физкультура")
-        return
-
-    if text in zachety_list:
-        zachety_list.remove(text)
-        await message.reply(f"✅ Зачёт '{text}' удалён из списка.")
-    else:
-        await message.reply(f"❌ Зачёт '{text}' не найден в списке.")
-
-@dp.message(Command(commands=["add_zachet"]))
-async def add_zachet(message: types.Message):
+def save_zachety():
     """
-    Добавляет новый предмет/зачёт в список zachety_list через сообщение.
-    Использование: /add_zachet <название зачёта>
+    Сохраняет список зачётов в zachety.txt
     """
-    # Убираем команду из текста
-    text = message.text.replace("/add_zachet", "").strip()
-
-    if not text:
-        await message.reply("❌ Укажи название зачёта после команды. Например:\n/add_zachet Физкультура")
-        return
-
-    zachety_list.append(text)
-    await message.reply(f"✅ Зачёт '{text}' добавлен в список.")
+    with open("zachety.txt", "w", encoding="utf-8") as f:
+        for item in zachety_list:
+            f.write(item + "\n")
 
 @dp.message(Command(commands=["zachety"]))
 async def send_zachety(message: types.Message):
-    """
-    Команда /zachety выводит весь список зачётов.
-    """
+    load_zachety()  # загружаем актуальный список
     if not zachety_list:
         await message.reply("❌ Список зачётов пустой")
         return
@@ -128,40 +144,83 @@ async def send_zachety(message: types.Message):
     reply_text = "📝 Список зачётов:\n\n"
     for item in zachety_list:
         reply_text += f"• {item}\n"
-
     await message.reply(reply_text)
 
+@dp.message(Command(commands=["add_zachet"]))
+async def add_zachet(message: types.Message):
+    text = message.text.replace("/add_zachet", "").strip()
+    if not text:
+        await message.reply("❌ Укажи название зачёта после команды.\nПример:\n/add_zachet Физкультура")
+        return
+
+    load_zachety()
+    zachety_list.append(text)
+    save_zachety()
+    await message.reply(f"✅ Зачёт '{text}' добавлен в список.")
+
+@dp.message(Command(commands=["del_zachet"]))
+async def del_zachet(message: types.Message):
+    text = message.text.replace("/del_zachet", "").strip()
+    if not text:
+        await message.reply("❌ Укажи название зачёта после команды.\nПример:\n/del_zachet История")
+        return
+
+    load_zachety()
+    if text in zachety_list:
+        zachety_list.remove(text)
+        save_zachety()
+        await message.reply(f"✅ Зачёт '{text}' удалён из списка.")
+    else:
+        await message.reply(f"❌ Зачёт '{text}' не найден в списке.")
+# вызываем
+schedule = {}
+
+def load_schedule():
+    """
+    Загружает расписание из файла schedule.txt
+    """
+    global schedule
+    schedule = {"числитель": {}, "знаменатель": {}}
+    current_week = None
+    try:
+        with open("schedule.txt", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("[") and line.endswith("]"):
+                    current_week = line[1:-1].lower()
+                    continue
+                if current_week and ":" in line:
+                    day, lessons = line.split(":", 1)
+                    schedule[current_week][day.strip().lower()] = lessons.strip()
+    except FileNotFoundError:
+        print("Файл schedule.txt не найден, создается пустой словарь")
 # --- Добавляем эту функцию в main.py ---
 
 @dp.message(Command(commands=["schedule"]))
 async def send_schedule(message: types.Message):
     """
-    Обработка команды /schedule.
-    Можно писать: /schedule 15.12, /schedule сегодня, /schedule завтра
+    Показывает расписание на всю неделю, читая данные из schedule.txt
+    Использование: /schedule числитель или /schedule знаменатель
     """
-    text = message.text
-    today = datetime.now()
+    load_schedule()  # Загружаем актуальное расписание из файла при каждом вызове
+    text = message.text.lower().replace("/schedule", "").strip()
 
-    # Обработка слов "сегодня" и "завтра"
-    if "сегодня" in text.lower():
-        date_str = today.strftime("%d.%m.%Y")
-    elif "завтра" in text.lower():
-        date_str = (today + timedelta(days=1)).strftime("%d.%m.%Y")
-    else:
-        # Ищем дату в формате ДД.ММ
-        match = re.search(r"(\d{1,2}\.\d{1,2})", text)
-        if match:
-            date = match.group(1)
-            date_str = f"{date}.{today.year}"
-        else:
-            await message.reply("📅 Укажи дату в формате ДД.ММ или напиши 'сегодня', 'завтра'")
-            return
+    if text not in ["числитель", "знаменатель"]:
+        await message.reply(
+            "📅 Укажи тип недели: 'числитель' или 'знаменатель'.\n"
+            "Пример:\n/schedule числитель"
+        )
+        return
 
-    # Отправка расписания
-    if date_str in schedule:
-        await message.reply(f"🗓 Расписание на {date_str[:-5]}:\n\n{schedule[date_str]}")
-    else:
-        await message.reply(f"❌ Расписание на {date_str[:-5]} не найдено")
+    week_schedule = schedule.get(text)
+    reply_text = f"🗓 Расписание на неделю ({text}):\n\n"
+
+    for day, lessons in week_schedule.items():
+        reply_text += f"{day.capitalize()}: {lessons}\n"
+
+    await message.reply(reply_text)
 
 @dp.message()
 async def handle_message(message: Message):
@@ -192,6 +251,15 @@ async def handle_message(message: Message):
     else:
         await message.reply(f"❌ Расписание на {date} не найдено")
 
+@dp.message(Command(commands=["help"]))
+async def send_help(message: types.Message):
+    help_text = (
+        "🤖 Доступные команды бота:\n\n"
+        "/schedule <числитель/знаменатель> — показать расписание на неделю\n"
+        "/zachety — показать список зачётов\n"
+        "/help — показать это сообщение\n\n"
+    )
+    await message.reply(help_text)
 
 async def main():
     await dp.start_polling(bot)
