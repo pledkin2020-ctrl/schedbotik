@@ -17,6 +17,47 @@ schedule = {
     "16.12.2025": "📘 Русский язык\n🌍 География",
 }
 
+# Список зачётов
+zachety_list = [
+    "Юридическое делопроизводство",
+    "История",
+    "Химия",
+    "Русский язык",
+    "География",
+    "Физика"
+]
+
+@dp.message(Command(commands=["add_zachet"]))
+async def add_zachet(message: types.Message):
+    """
+    Добавляет новый предмет/зачёт в список zachety_list через сообщение.
+    Использование: /add_zachet <название зачёта>
+    """
+    # Убираем команду из текста
+    text = message.text.replace("/add_zachet", "").strip()
+
+    if not text:
+        await message.reply("❌ Укажи название зачёта после команды. Например:\n/add_zachet Физкультура")
+        return
+
+    zachety_list.append(text)
+    await message.reply(f"✅ Зачёт '{text}' добавлен в список.")
+
+@dp.message(Command(commands=["zachety"]))
+async def send_zachety(message: types.Message):
+    """
+    Команда /zachety выводит весь список зачётов.
+    """
+    if not zachety_list:
+        await message.reply("❌ Список зачётов пустой")
+        return
+
+    reply_text = "📝 Список зачётов:\n\n"
+    for item in zachety_list:
+        reply_text += f"• {item}\n"
+
+    await message.reply(reply_text)
+
 # --- Добавляем эту функцию в main.py ---
 
 @dp.message(Command(commands=["schedule"]))
