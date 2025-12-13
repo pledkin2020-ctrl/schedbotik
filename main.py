@@ -17,6 +17,37 @@ schedule = {
     "16.12.2025": "📘 Русский язык\n🌍 География",
 }
 
+# --- Добавляем эту функцию в main.py ---
+
+@dp.message(Command(commands=["schedule"]))
+async def send_schedule(message: types.Message):
+    """
+    Обработка команды /schedule.
+    Можно писать: /schedule 15.12, /schedule сегодня, /schedule завтра
+    """
+    text = message.text
+    today = datetime.now()
+
+    # Обработка слов "сегодня" и "завтра"
+    if "сегодня" in text.lower():
+        date_str = today.strftime("%d.%m.%Y")
+    elif "завтра" in text.lower():
+        date_str = (today + timedelta(days=1)).strftime("%d.%m.%Y")
+    else:
+        # Ищем дату в формате ДД.ММ
+        match = re.search(r"(\d{1,2}\.\d{1,2})", text)
+        if match:
+            date = match.group(1)
+            date_str = f"{date}.{today.year}"
+        else:
+            await message.reply("📅 Укажи дату в формате ДД.ММ или напиши 'сегодня', 'завтра'")
+            return
+
+    # Отправка расписания
+    if date_str in schedule:
+        await message.reply(f"🗓 Расписание на {date_str[:-5]}:\n\n{schedule[date_str]}")
+    else:
+        await message.reply(f"❌ Расписание на {date_str[:-5]} не найдено")
 
 @dp.message()
 async def handle_message(message: Message):
