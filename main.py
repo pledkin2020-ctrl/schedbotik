@@ -251,6 +251,35 @@ async def handle_message(message: Message):
     else:
         await message.reply(f"❌ Расписание на {date} не найдено")
 
+@dp.message(Command(commands=["clear_zachety"]))
+async def clear_zachety(message: types.Message):
+    """
+    Удаляет все зачёты из списка и файла zachety.txt
+    """
+    load_zachety()  # загружаем актуальный список
+    if not zachety_list:
+        await message.reply("❌ Список зачётов уже пустой.")
+        return
+
+    zachety_list.clear()  # очищаем список
+    save_zachety()         # сохраняем пустой список в файл
+    await message.reply("✅ Все зачёты удалены из списка.")
+
+@dp.message(Command(commands=["clear_schedule"]))
+async def clear_schedule(message: types.Message):
+    """
+    Очищает все расписания (числитель и знаменатель) и сохраняет в schedule.txt
+    """
+    load_schedule()  # загружаем текущее расписание
+
+    # Очищаем все дни в обеих неделях
+    for week_type in schedule:
+        for day in schedule[week_type]:
+            schedule[week_type][day] = ""
+
+    save_schedule()  # сохраняем пустое расписание в файл
+    await message.reply("✅ Всё расписание очищено.")
+
 @dp.message(Command(commands=["help"]))
 async def send_help(message: types.Message):
     help_text = (
