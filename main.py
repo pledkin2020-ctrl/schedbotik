@@ -35,6 +35,38 @@ schedule = {
         # и так далее
     }
 }
+#тегаем всех
+@dp.message(Command(commands=["all"]))
+async def mention_all(message: types.Message):
+    """
+    Отправляет сообщение, упоминая всех участников чата.
+    Формат: /mention_all <текст сообщения>
+    """
+    if message.chat.type not in ["group", "supergroup"]:
+        await message.reply("❌ Эта команда работает только в группах или супергруппах.")
+        return
+
+    text_to_send = message.text.replace("/mention_all", "").strip()
+    if not text_to_send:
+        await message.reply("❌ Укажи текст сообщения после команды.\nПример:\n/mention_all Всем привет!")
+        return
+
+    try:
+        # Получаем участников чата (бот должен быть администратором)
+        members = await bot.get_chat_administrators(message.chat.id)
+        mentions = []
+        for member in members:
+            user = member.user
+            if user.username:
+                mentions.append(f"@{user.username}")
+            else:
+                mentions.append(f"[{user.first_name}](tg://user?id={user.id})")
+
+        mentions_text = " ".join(mentions)
+        final_text = f"{text_to_send}\n\n{mentions_text}"
+        await bot.send_message(message.chat.id, final_text, parse_mode="Markdown")
+    except Exception as e:
+        await message.reply(f"❌ Не удалось получить участников чата: {e}")
 
 #система оповещений
 chats_to_notify = []
