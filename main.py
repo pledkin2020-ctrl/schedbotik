@@ -7,6 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 TOKEN = "8599743564:AAFYd1AoPNiPlqkzENvMYnjOR2JEXTUQczY"
+ADMIN_ID = 123456789  # ← вставь сюда СВОЙ user_id
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -35,6 +36,15 @@ schedule = {
         # и так далее
     }
 }
+
+#встраиваем админку
+@dp.message(Command(commands=["myid"]))
+async def my_id(message: types.Message):
+    await message.reply(f"Ваш user_id: {message.from_user.id}")
+
+def is_admin(message: types.Message) -> bool:
+    return message.from_user.id == ADMIN_ID
+
 #тегаем всех
 @dp.message(Command(commands=["all"]))
 async def mention_all(message: types.Message):
@@ -89,6 +99,9 @@ def save_chats():
 
 @dp.message(Command(commands=["broadcast"]))
 async def broadcast_message(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     """
     Рассылает текст во все зарегистрированные чаты
     Формат: /broadcast текст сообщения
@@ -111,6 +124,9 @@ async def broadcast_message(message: types.Message):
 
 @dp.message(Command(commands=["register_chat"]))
 async def register_chat(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     """
     Регистрирует текущий чат для рассылки сообщений и ежедневного расписания
     """
@@ -143,6 +159,9 @@ def save_schedule():
 
 @dp.message(Command(commands=["clear_zachety"]))
 async def clear_zachety(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     """
     Очищает все зачёты и сохраняет пустой список в zachety.txt
     """
@@ -159,6 +178,9 @@ async def clear_zachety(message: types.Message):
 
 @dp.message(Command(commands=["clear_schedule"]))
 async def clear_schedule(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     """
     Очищает все расписания (числитель и знаменатель) и сохраняет в schedule.txt
     """
@@ -184,6 +206,9 @@ async def send_help(message: types.Message):
 
 @dp.message(Command(commands=["update_schedule"]))
 async def update_schedule(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     """
     Обновляет расписание на всю неделю через чат и сохраняет в schedule.txt
     Формат:
@@ -277,6 +302,9 @@ async def send_zachety(message: types.Message):
 
 @dp.message(Command(commands=["add_zachet"]))
 async def add_zachet(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     text = message.text.replace("/add_zachet", "").strip()
     if not text:
         await message.reply("❌ Укажи название зачёта после команды.\nПример:\n/add_zachet Физкультура")
@@ -289,6 +317,9 @@ async def add_zachet(message: types.Message):
 
 @dp.message(Command(commands=["del_zachet"]))
 async def del_zachet(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
     text = message.text.replace("/del_zachet", "").strip()
     if not text:
         await message.reply("❌ Укажи название зачёта после команды.\nПример:\n/del_zachet История")
