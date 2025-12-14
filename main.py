@@ -7,7 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 TOKEN = "8599743564:AAFYd1AoPNiPlqkzENvMYnjOR2JEXTUQczY"
-ADMIN_ID = 123456789  # ← вставь сюда СВОЙ user_id
+ADMIN_ID = 1568031142  # ← вставь сюда СВОЙ user_id
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
