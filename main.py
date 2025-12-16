@@ -16,11 +16,38 @@ async def main():
     # Загружаем данные при старте бота
     load_schedule()   # загружает расписание из schedule.txt
     load_zachety()    # загружает список зачётов из zachety.txt
+    load_chats()
+    load_week()
 
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
 
+#заливаем недели
+WEEK_FILE = "week.txt"
 
+
+def load_week():
+    try:
+        with open(WEEK_FILE, "r", encoding="utf-8") as f:
+            week = f.read().strip().lower()
+            if week in ("числитель", "знаменатель"):
+                return week
+    except FileNotFoundError:
+        pass
+    save_week("числитель")
+    return "числитель"
+
+
+def save_week(week: str):
+    with open(WEEK_FILE, "w", encoding="utf-8") as f:
+        f.write(week)
+
+
+def switch_week():
+    current = load_week()
+    new_week = "знаменатель" if current == "числитель" else "числитель"
+    save_week(new_week)
+    return new_week
 # Пример расписания
 schedule = {
     "Числитель": {
@@ -43,6 +70,73 @@ async def my_id(message: types.Message):
 
 def is_admin(message: types.Message) -> bool:
     return message.from_user.id == ADMIN_ID
+#встраиваем автосообщение
+@dp.message(Command(commands=["set_week"]))
+async def set_week_cmd(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав")
+        return
+
+    text = message.text.replace("/set_week", "").strip().lower()
+    if text not in ("числитель", "знаменатель"):
+        await message.reply("❌ Используй: /set_week числитель | знаменатель")
+        return
+
+    save_week(text)
+    await message.reply(f"✅ Текущая неделя установлена: {text}")
+
+
+from datetime import datetime
+
+def get_today_schedule():
+    week = load_week()
+    today = datetime.now().strftime("%A").lower()
+
+    days_map = {
+        "monday": "понедельник",
+        "tuesday": "вторник",
+        "wednesday": "среда",
+        "thursday": "четверг",
+        "friday": "пятница",
+        "saturday": "суббота",
+        "sunday": "воскресенье",
+    }
+
+    day_ru = days_map.get(today)
+    load_schedule()
+
+    lessons = schedule.get(week, {}).get(day_ru, "")
+    if not lessons:
+        return f"📅 Сегодня ({day_ru})\nПар нет 🎉"
+
+    return f"📅 Сегодня ({day_ru})\n\n{lessons}"
+
+
+async def daily_scheduler():
+    while True:
+        now = datetime.now()
+
+        # 07:00 — отправка расписания
+        if now.time().hour == 7 and now.time().minute == 0:
+            load_chats()
+            text = get_today_schedule() + "\n\n" + get_week_schedule()
+
+            for chat_id in chats_to_notify:
+                try:
+                    await bot.send_message(chat_id, text, parse_mode=None)
+                except Exception as e:
+                    print(f"Ошибка отправки в {chat_id}: {e}")
+
+            await asyncio.sleep(60)
+
+        # Понедельник 00:00 — переключение недели
+        if now.weekday() == 0 and now.time().hour == 0 and now.time().minute == 0:
+            new_week = switch_week()
+            print(f"Неделя автоматически переключена на {new_week}")
+            await asyncio.sleep(60)
+
+        await asyncio.sleep(30)
+
 
 #тегаем всех
 @dp.message(Command(commands=["all"]))
