@@ -114,7 +114,7 @@ async def my_id(message: types.Message):
     await message.reply(f"Ваш user_id: {message.from_user.id}")
 
 def is_admin(message: types.Message) -> bool:
-    return message.from_user.id == ADMIN_ID
+    return message.from_user.id in admins
 #встраиваем автосообщение
 @dp.message(Command(commands=["set_week"]))
 async def set_week_cmd(message: types.Message):
