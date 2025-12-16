@@ -7,7 +7,30 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 TOKEN = "8599743564:AAFYd1AoPNiPlqkzENvMYnjOR2JEXTUQczY"
-ADMIN_ID = 1568031142  # ← вставь сюда СВОЙ user_id
+ADMINS_FILE = "admins.txt"
+admins = set()
+
+def load_admins():
+    admins.clear()
+    try:
+        with open(ADMINS_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    try:
+                        admins.add(int(line))
+                    except ValueError:
+                        pass
+    except FileNotFoundError:
+        open(ADMINS_FILE, "w").close()
+
+def save_admins():
+    with open(ADMINS_FILE, "w", encoding="utf-8") as f:
+        for a in admins:
+            f.write(f"{a}\n")
+
+def is_admin(message: types.Message) -> bool:
+    return message.from_user.id in admins
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -21,6 +44,43 @@ async def main():
 
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
+#заливаем админов
+@dp.message(Command("addadmin"))
+async def add_admin(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав")
+        return
+    try:
+        new_id = int(message.text.replace("/addadmin", "").strip())
+    except ValueError:
+        await message.reply("❌ Введите корректный ID")
+        return
+
+    if new_id in admins:
+        await message.reply("ℹ️ Пользователь уже админ")
+        return
+
+    admins.add(new_id)
+    save_admins()
+    await message.reply(f"✅ Пользователь {new_id} добавлен как админ")
+
+@dp.message(Command("deladmin"))
+async def del_admin(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав")
+        return
+    try:
+        rem_id = int(message.text.replace("/deladmin", "").strip())
+    except ValueError:
+        await message.reply("❌ Введите корректный ID")
+        return
+
+    if rem_id in admins:
+        admins.remove(rem_id)
+        save_admins()
+        await message.reply(f"✅ Пользователь {rem_id} удалён из админов")
+    else:
+        await message.reply("❌ Пользователь не найден в списке админов")
 
 #заливаем недели
 WEEK_FILE = "week.txt"
@@ -48,21 +108,6 @@ def switch_week():
     new_week = "знаменатель" if current == "числитель" else "числитель"
     save_week(new_week)
     return new_week
-# Пример расписания
-schedule = {
-    "Числитель": {
-        "Понедельник": "Математика, Физика",
-        "Вторник": "История, Химия",
-        "Среда": "Русский язык, Биология",
-        # и так далее
-    },
-    "Знаменатель": {
-        "Понедельник": "География, Физкультура",
-        "Вторник": "Английский, Литература",
-        "Среда": "Информатика, Музыка",
-        # и так далее
-    }
-}
 #встраиваем админку
 @dp.message(Command(commands=["myid"]))
 async def my_id(message: types.Message):
