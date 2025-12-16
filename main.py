@@ -36,7 +36,9 @@ schedule = {
         # и так далее
     }
 }
-
+#тестим файл
+with open("chats.txt", "a", encoding="utf-8") as f:
+    f.write("test\n")
 #встраиваем админку
 @dp.message(Command(commands=["myid"]))
 async def my_id(message: types.Message):
