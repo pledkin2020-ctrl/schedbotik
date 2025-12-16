@@ -137,6 +137,9 @@ async def daily_scheduler():
 
         await asyncio.sleep(30)
 
+@dp.message(Command("today"))
+async def today_cmd(message: types.Message):
+    await message.reply(get_today_schedule(), parse_mode=None)
 
 #тегаем всех
 @dp.message(Command(commands=["all"]))
