@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message
 
-TOKEN = "8599743564:AAFYd1AoPNiPlqkzENvMYnjOR2JEXTUQczY"
+TOKEN = "8599743564:AAEe9noSFLa1Edp1p3MWuDpv4F0cz1Sd8rs"
 ADMINS_FILE = "admins.txt"
 admins = set()
 
