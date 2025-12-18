@@ -41,6 +41,7 @@ async def main():
     load_zachety()    # загружает список зачётов из zachety.txt
     load_chats()
     load_week()
+    load_admins()
 
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
