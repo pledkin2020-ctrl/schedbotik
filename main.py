@@ -42,9 +42,136 @@ async def main():
     load_chats()
     load_week()
     load_admins()
+    load_autosend()
+
+    asyncio.create_task(autosend_loop())
 
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
+
+
+#заливаем авторассылку
+AUTOSEND_FILE = "autosend.json"
+
+autosend_settings = {
+    "enabled": False,
+    "time": "07:00",
+    "content": "today+week",
+    "last_sent": ""
+}
+
+def load_autosend():
+    global autosend_settings
+    try:
+        with open(AUTOSEND_FILE, "r", encoding="utf-8") as f:
+            autosend_settings = json.load(f)
+    except FileNotFoundError:
+        save_autosend()
+
+def save_autosend():
+    with open(AUTOSEND_FILE, "w", encoding="utf-8") as f:
+        json.dump(autosend_settings, f, ensure_ascii=False, indent=2)
+
+
+async def autosend_loop():
+    while True:
+        load_autosend()
+
+        if not autosend_settings["enabled"]:
+            await asyncio.sleep(30)
+            continue
+
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        today_date = now.strftime("%Y-%m-%d")
+
+        if (
+            current_time == autosend_settings["time"]
+            and autosend_settings["last_sent"] != today_date
+        ):
+            load_chats()
+
+            if autosend_settings["content"] == "today":
+                text = get_today_schedule()
+            elif autosend_settings["content"] == "week":
+                text = get_week_schedule()
+            else:
+                text = get_today_schedule() + "\n\n" + get_week_schedule()
+
+            for chat_id in chats_to_notify:
+                try:
+                    await bot.send_message(chat_id, text, parse_mode=None)
+                except Exception as e:
+                    print(f"Ошибка авторассылки в {chat_id}: {e}")
+
+            autosend_settings["last_sent"] = today_date
+            save_autosend()
+
+            await asyncio.sleep(60)
+
+        await asyncio.sleep(20)
+
+@dp.message(Command("autosend"))
+async def autosend_cmd(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав")
+        return
+
+    load_autosend()
+    args = message.text.split()
+
+    if len(args) == 1:
+        await message.reply(
+            "⚙️ Использование:\n"
+            "/autosend on | off\n"
+            "/autosend time HH:MM\n"
+            "/autosend content today | week | today+week\n"
+            "/autosend status"
+        )
+        return
+
+    sub = args[1].lower()
+
+    # on / off
+    if sub in ("on", "off"):
+        autosend_settings["enabled"] = sub == "on"
+        save_autosend()
+        await message.reply(f"📡 Авторассылка {'включена' if sub == 'on' else 'выключена'}")
+        return
+
+    # time
+    if sub == "time":
+        if len(args) != 3 or not re.match(r"^\d{2}:\d{2}$", args[2]):
+            await message.reply("❌ Формат: /autosend time HH:MM")
+            return
+        autosend_settings["time"] = args[2]
+        save_autosend()
+        await message.reply(f"⏰ Время авторассылки установлено: {args[2]}")
+        return
+
+    # content
+    if sub == "content":
+        if len(args) != 3 or args[2] not in ("today", "week", "today+week"):
+            await message.reply("❌ Используй: today | week | today+week")
+            return
+        autosend_settings["content"] = args[2]
+        save_autosend()
+        await message.reply(f"📦 Контент авторассылки: {args[2]}")
+        return
+
+    # status
+    if sub == "status":
+        status = "ВКЛ ✅" if autosend_settings["enabled"] else "ВЫКЛ ❌"
+        await message.reply(
+            f"📡 Авторассылка: {status}\n"
+            f"⏰ Время: {autosend_settings['time']}\n"
+            f"📦 Контент: {autosend_settings['content']}\n"
+            f"📅 Последняя отправка: {autosend_settings['last_sent'] or 'ещё не было'}"
+        )
+        return
+
+    await message.reply("❌ Неизвестная подкоманда")
+
 #заливаем админов
 @dp.message(Command("addadmin"))
 async def add_admin(message: types.Message):
@@ -117,15 +244,15 @@ async def my_id(message: types.Message):
 def is_admin(message: types.Message) -> bool:
     return message.from_user.id in admins
 #встраиваем автосообщение
-@dp.message(Command(commands=["set_week"]))
-async def set_week_cmd(message: types.Message):
+@dp.message(Command(commands=["setweek"]))
+async def setweek_cmd(message: types.Message):
     if not is_admin(message):
         await message.reply("❌ Нет прав")
         return
 
-    text = message.text.replace("/set_week", "").strip().lower()
+    text = message.text.replace("/setweek", "").strip().lower()
     if text not in ("числитель", "знаменатель"):
-        await message.reply("❌ Используй: /set_week числитель | знаменатель")
+        await message.reply("❌ Используй: /setweek числитель | знаменатель")
         return
 
     save_week(text)
