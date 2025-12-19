@@ -60,39 +60,6 @@ async def main():
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
 
-#тестим1
-@dp.message()
-async def handle_text(message: types.Message):
-    if not message.text:
-        return
-
-    text = message.text.lower().strip()
-
-    # "сегодня" — показать расписание на сегодня
-    if "сегодня" in text:
-        await message.reply(get_today_schedule())
-        return
-
-    # "какая сейчас неделя" — показать текущую неделю
-    if "какая сейчас неделя" in text:
-        current_week = load_week()
-        await message.reply(f"📅 Сейчас {current_week} неделя")
-        return
-
-    # "расписание" — показать расписание на сегодня
-    if "расписание" in text:
-        await message.reply(get_today_schedule())
-        return
-
-    # "зачёт" — показать список зачётов
-    if "зачёт" in text:
-        load_zachety()
-        if zachety_list:
-            reply_text = "📝 Список зачётов:\n\n" + "\n".join(f"• {item}" for item in zachety_list)
-        else:
-            reply_text = "❌ Список зачётов пустой"
-        await message.reply(reply_text)
-        return
 #тестим
 @dp.message(Command(commands=["all"]))
 async def mention_all(message: types.Message):
@@ -843,4 +810,7 @@ async def handle_message(message: Message):
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Ошибка при запуске бота: {e}")
