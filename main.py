@@ -50,6 +50,12 @@ async def main():
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
 
+#время проверяем
+@dp.message(Command(commands=["time"]))
+async def bot_time(message: types.Message):
+    now = datetime.now()
+    await message.reply(f"⏰ Текущее время бота: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+
 
 #заливаем авторассылку
 AUTOSEND_FILE = "autosend.json"
