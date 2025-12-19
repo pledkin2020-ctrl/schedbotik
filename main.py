@@ -608,25 +608,52 @@ schedule = {}
 
 def load_schedule():
     """
-    Загружает расписание из файла schedule.txt
+    Загружает расписание из schedule.txt (поддержка многострочных дней)
     """
     global schedule
     schedule = {"числитель": {}, "знаменатель": {}}
+
     current_week = None
+    current_day = None
+    buffer = []
+
     try:
         with open("schedule.txt", "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
+            for raw_line in f:
+                line = raw_line.rstrip()
+
                 if not line:
                     continue
+
+                # [числитель] или [знаменатель]
                 if line.startswith("[") and line.endswith("]"):
+                    if current_day and buffer:
+                        schedule[current_week][current_day] = "\n".join(buffer)
+                        buffer = []
+
                     current_week = line[1:-1].lower()
+                    current_day = None
                     continue
-                if current_week and ":" in line:
-                    day, lessons = line.split(":", 1)
-                    schedule[current_week][day.strip().lower()] = lessons.strip()
+
+                # новый день
+                if line.endswith(":"):
+                    if current_day and buffer:
+                        schedule[current_week][current_day] = "\n".join(buffer)
+
+                    current_day = line[:-1].lower()
+                    buffer = []
+                    continue
+
+                # строка пары
+                if current_day:
+                    buffer.append(line)
+
+            # сохранить последний день
+            if current_week and current_day and buffer:
+                schedule[current_week][current_day] = "\n".join(buffer)
+
     except FileNotFoundError:
-        print("Файл schedule.txt не найден, создается пустой словарь")
+        print("Файл schedule.txt не найден")
 # --- Добавляем эту функцию в main.py ---
 
 @dp.message(Command(commands=["schedule"]))
