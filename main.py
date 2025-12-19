@@ -2,6 +2,7 @@ import asyncio
 import re
 from datetime import datetime
 import json
+from html import escape
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -45,18 +46,41 @@ async def main():
     load_admins()
     load_autosend()
 
+    asyncio.create_task(daily_scheduler())
     asyncio.create_task(autosend_loop())
 
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
 
-#время проверяем
-@dp.message(Command(commands=["time"]))
-async def bot_time(message: types.Message):
-    now = datetime.now()
-    await message.reply(f"⏰ Текущее время бота: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+#тестим
+@dp.message(Command(commands=["all"]))
+async def mention_all(message: types.Message):
+    if message.chat.type not in ["group", "supergroup"]:
+        await message.reply("❌ Эта команда работает только в группах или супергруппах.")
+        return
 
-#работа с чатами
+    text_to_send = message.text.replace("/all", "").strip()
+    if not text_to_send:
+        await message.reply("❌ Укажи текст сообщения после команды.\nПример:\n/all Всем привет!")
+        return
+
+    try:
+        me = await bot.get_me()  # получаем данные бота
+        members = await bot.get_chat_administrators(message.chat.id)
+        mentions = []
+
+        for member in members:
+            user = member.user
+            if user.id == me.id:
+                continue  # пропускаем самого бота
+            name = escape(user.first_name)
+            mentions.append(f'<a href="tg://user?id={user.id}">{name}</a>')
+
+        mentions_text = " ".join(mentions)
+        final_text = f"{text_to_send}\n\n{mentions_text}"
+        await bot.send_message(message.chat.id, final_text, parse_mode="HTML")
+    except Exception as e:
+        await message.reply(f"❌ Не удалось получить участников чата: {e}")
 # ------------------ Работа с чатами для рассылки ------------------
 
 @dp.message(Command(commands=["chats"]))
@@ -128,6 +152,11 @@ async def del_chat(message: types.Message):
     chats_to_notify.remove(chat_id)
     save_chats()
     await message.reply(f"✅ Чат {chat_id} удалён из списка рассылки")
+# ------------------ Команда для проверки времени бота ------------------
+@dp.message(Command(commands=["time"]))
+async def bot_time(message: types.Message):
+    now = datetime.now()
+    await message.reply(f"⏰ Текущее время бота: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 #заливаем авторассылку
 AUTOSEND_FILE = "autosend.json"
 
@@ -392,38 +421,7 @@ async def daily_scheduler():
 async def today_cmd(message: types.Message):
     await message.reply(get_today_schedule(), parse_mode=None)
 
-#тегаем всех
-@dp.message(Command(commands=["all"]))
-async def mention_all(message: types.Message):
-    """
-    Отправляет сообщение, упоминая всех участников чата.
-    Формат: /mention_all <текст сообщения>
-    """
-    if message.chat.type not in ["group", "supergroup"]:
-        await message.reply("❌ Эта команда работает только в группах или супергруппах.")
-        return
 
-    text_to_send = message.text.replace("/mention_all", "").strip()
-    if not text_to_send:
-        await message.reply("❌ Укажи текст сообщения после команды.\nПример:\n/mention_all Всем привет!")
-        return
-
-    try:
-        # Получаем участников чата (бот должен быть администратором)
-        members = await bot.get_chat_administrators(message.chat.id)
-        mentions = []
-        for member in members:
-            user = member.user
-            if user.username:
-                mentions.append(f"@{user.username}")
-            else:
-                mentions.append(f"[{user.first_name}](tg://user?id={user.id})")
-
-        mentions_text = " ".join(mentions)
-        final_text = f"{text_to_send}\n\n{mentions_text}"
-        await bot.send_message(message.chat.id, final_text, parse_mode="Markdown")
-    except Exception as e:
-        await message.reply(f"❌ Не удалось получить участников чата: {e}")
 
 #система оповещений
 chats_to_notify = []
