@@ -418,14 +418,17 @@ zachety_list = [
 
 def save_schedule():
     """
-    Сохраняет текущий словарь schedule в файл schedule.txt
+    Сохраняет расписание в schedule.txt (корректный многострочный формат)
     """
     with open("schedule.txt", "w", encoding="utf-8") as f:
-        for week_type in ["числитель", "знаменатель"]:
+        for week_type in ("числитель", "знаменатель"):
             f.write(f"[{week_type}]\n")
             for day, lessons in schedule[week_type].items():
-                f.write(f"{day}: {lessons}\n")
-            f.write("\n")
+                f.write(f"{day}:\n")
+                if lessons:
+                    for line in lessons.split("\n"):
+                        f.write(f"{line}\n")
+                f.write("\n")
 
 @dp.message(Command(commands=["clear_zachety"]))
 async def clear_zachety(message: types.Message):
@@ -658,27 +661,40 @@ def load_schedule():
 
 @dp.message(Command(commands=["schedule"]))
 async def send_schedule(message: types.Message):
-    """
-    Показывает расписание на всю неделю, читая данные из schedule.txt
-    Использование: /schedule числитель или /schedule знаменатель
-    """
-    load_schedule()  # Загружаем актуальное расписание из файла при каждом вызове
-    text = message.text.lower().replace("/schedule", "").strip()
+    load_schedule()
 
-    if text not in ["числитель", "знаменатель"]:
+    week_type = message.text.lower().replace("/schedule", "").strip()
+    if week_type not in ("числитель", "знаменатель"):
         await message.reply(
-            "📅 Укажи тип недели: 'числитель' или 'знаменатель'.\n"
-            "Пример:\n/schedule числитель"
+            "📅 Использование:\n"
+            "/schedule числитель\n"
+            "/schedule знаменатель"
         )
         return
 
-    week_schedule = schedule.get(text)
-    reply_text = f"🗓 Расписание на неделю ({text}):\n\n"
+    days_order = [
+        "понедельник",
+        "вторник",
+        "среда",
+        "четверг",
+        "пятница",
+        "суббота",
+        "воскресенье",
+    ]
 
-    for day, lessons in week_schedule.items():
-        reply_text += f"{day.capitalize()}: {lessons}\n"
+    reply = f"🗓 Расписание на неделю ({week_type}):\n\n"
 
-    await message.reply(reply_text)
+    for day in days_order:
+        lessons = schedule.get(week_type, {}).get(day)
+
+        reply += f"📌 {day.capitalize()}:\n"
+        if lessons:
+            reply += lessons + "\n"
+        else:
+            reply += "Пар нет 🎉\n"
+        reply += "\n"
+
+    await message.reply(reply)
 
 @dp.message()
 async def handle_message(message: Message):
