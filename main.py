@@ -56,7 +56,78 @@ async def bot_time(message: types.Message):
     now = datetime.now()
     await message.reply(f"⏰ Текущее время бота: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
+#работа с чатами
+# ------------------ Работа с чатами для рассылки ------------------
 
+@dp.message(Command(commands=["chats"]))
+async def list_chats(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав для этой команды")
+        return
+
+    load_chats()
+    if not chats_to_notify:
+        await message.reply("ℹ️ Список зарегистрированных чатов пуст.")
+        return
+
+    reply_text = "📋 Зарегистрированные чаты для рассылки:\n"
+    for chat_id in chats_to_notify:
+        reply_text += f"• {chat_id}\n"
+    await message.reply(reply_text)
+
+
+@dp.message(Command(commands=["addchat"]))
+async def add_chat(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) != 2:
+        await message.reply("❌ Используй: /addchat <chat_id>")
+        return
+
+    try:
+        chat_id = int(args[1])
+    except ValueError:
+        await message.reply("❌ Некорректный chat_id")
+        return
+
+    load_chats()
+    if chat_id in chats_to_notify:
+        await message.reply("ℹ️ Этот чат уже зарегистрирован")
+        return
+
+    chats_to_notify.append(chat_id)
+    save_chats()
+    await message.reply(f"✅ Чат {chat_id} добавлен в список рассылки")
+
+
+@dp.message(Command(commands=["delchat"]))
+async def del_chat(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ Нет прав для этой команды")
+        return
+
+    args = message.text.split()
+    if len(args) != 2:
+        await message.reply("❌ Используй: /delchat <chat_id>")
+        return
+
+    try:
+        chat_id = int(args[1])
+    except ValueError:
+        await message.reply("❌ Некорректный chat_id")
+        return
+
+    load_chats()
+    if chat_id not in chats_to_notify:
+        await message.reply("❌ Чат не найден в списке рассылки")
+        return
+
+    chats_to_notify.remove(chat_id)
+    save_chats()
+    await message.reply(f"✅ Чат {chat_id} удалён из списка рассылки")
 #заливаем авторассылку
 AUTOSEND_FILE = "autosend.json"
 
