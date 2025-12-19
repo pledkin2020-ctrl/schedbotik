@@ -477,63 +477,64 @@ async def send_help(message: types.Message):
 @dp.message(Command(commands=["update_schedule"]))
 async def update_schedule(message: types.Message):
     if not is_admin(message):
-        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        await message.reply("❌ У вас нет прав для этой команды")
         return
-    """
-    Обновляет расписание на всю неделю через чат и сохраняет в schedule.txt
-    Формат:
-    /update_schedule <числитель/знаменатель>
-    день: предмет1, предмет2
-    день: предмет1, предмет2
-    ...
 
-    Пример:
-    /update_schedule числитель
-    понедельник: Математика, Физика
-    вторник: История, Химия
-    среда: Русский язык, Биология
-    четверг: География, Литература
-    пятница: Английский, Информатика
-    суббота: Физкультура
-    """
-    text = message.text.replace("/update_schedule", "").strip()
+    load_schedule()
 
+    text = message.text.replace("/update_schedule", "", 1).strip()
     if not text:
         await message.reply(
-            "❌ Укажи тип недели: 'числитель' или 'знаменатель', а затем расписание для всех дней."
+            "❌ Формат:\n"
+            "/update_schedule числитель\n"
+            "понедельник:\n"
+            "1) Математика\n"
+            "2) Физика"
         )
         return
 
-    # Разделяем первую строку (тип недели) и остальной текст
-    lines = text.split("\n")
-    week_type = lines[0].strip().lower()
+    lines = [line.rstrip() for line in text.split("\n")]
 
-    if week_type not in schedule:
-        await message.reply("❌ Недопустимый тип недели. Используй 'числитель' или 'знаменатель'.")
+    week_type = lines[0].lower()
+    if week_type not in ("числитель", "знаменатель"):
+        await message.reply("❌ Укажи: числитель или знаменатель")
         return
 
-    # Загружаем текущее расписание из файла перед обновлением
-    load_schedule()
-
-    # Обрабатываем строки с днями недели
+    current_day = None
+    buffer = []
     updated_days = []
-    for line in lines[1:]:
-        if ":" not in line:
-            continue
-        day, lessons = line.split(":", 1)
-        day = day.strip().lower()
-        lessons = lessons.strip()
-        if day in schedule[week_type]:
-            schedule[week_type][day] = lessons
-            updated_days.append(day.capitalize())
 
-    # Сохраняем изменения в файл
+    for line in lines[1:]:
+        line = line.strip()
+
+        if not line:
+            continue
+
+        # если это новый день
+        if line.endswith(":"):
+            if current_day:
+                schedule[week_type][current_day] = "\n".join(buffer)
+                updated_days.append(current_day.capitalize())
+
+            current_day = line[:-1].lower()
+            buffer = []
+        else:
+            buffer.append(line)
+
+    # сохранить последний день
+    if current_day:
+        schedule[week_type][current_day] = "\n".join(buffer)
+        updated_days.append(current_day.capitalize())
+
     save_schedule()
 
     if updated_days:
-        await message.reply(f"✅ Расписание для {week_type} обновлено на следующие дни:\n" + ", ".join(updated_days))
+        await message.reply(
+            f"✅ Расписание обновлено ({week_type}):\n" +
+            ", ".join(updated_days)
+        )
     else:
-        await message.reply("❌ Не найдено корректных дней для обновления. Проверь формат команды.")
+        await message.reply("❌ Не удалось обновить расписание. Проверь формат.")
 
 # ------------------ Работа с файлом зачётов ------------------
 
