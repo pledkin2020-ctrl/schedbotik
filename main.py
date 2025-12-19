@@ -49,6 +49,14 @@ async def main():
     asyncio.create_task(daily_scheduler())
     asyncio.create_task(autosend_loop())
 
+    async def run_task(coro):
+        while True:
+            try:
+                await coro()
+            except Exception as e:
+                print(f"Ошибка в таске {coro.__name__}: {e}")
+                await asyncio.sleep(5)
+
     print("Бот запущен! Расписание и зачёты загружены.")  # для отладки
     await dp.start_polling(bot)
 
