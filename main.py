@@ -41,6 +41,7 @@ async def main():
     # Загружаем данные при старте бота
     load_schedule()   # загружает расписание из schedule.txt
     load_zachety()    # загружает список зачётов из zachety.txt
+    load_exam()
     load_chats()
     load_week()
     load_admins()
@@ -499,6 +500,11 @@ zachety_list = [
     "Тестовый зачёт",
 ]
 
+# Список экзаменов
+exam_list = [
+    "Тестовый зачёт",
+]
+
 def save_schedule():
     """
     Сохраняет расписание в schedule.txt (корректный многострочный формат)
@@ -512,7 +518,94 @@ def save_schedule():
                     for line in lessons.split("\n"):
                         f.write(f"{line}\n")
                 f.write("\n")
+#внедряем экзамены
+@dp.message(Command(commands=["clearexam"]))
+async def clearexam(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
+    """
+    Очищает все зачёты и сохраняет пустой список в exam.txt
+    """
+    global exam_list
+    load_exam()  # загружаем актуальный список
 
+    if not exam_list:
+        await message.reply("❌ Список зачётов уже пустой.")
+        return
+
+    exam_list.clear()  # очищаем список
+    save_exam()         # сохраняем пустой список в файл
+    await message.reply("✅ Все экзамены удалены из списка.")
+
+ ------------------ Работа с файлом экзаменов ------------------
+
+def load_exam():
+    """
+    Загружает список зачётов из exam.txt
+    """
+    global exam_list
+    exam_list = []
+    try:
+        with open("exam.txt", "r", encoding="utf-8") as f:
+            exam_list = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print("Файл exam.txt не найден, создается пустой список")
+        exam_list = []
+
+def save_exam():
+    """
+    Сохраняет список зачётов в exam.txt
+    """
+    with open("exam.txt", "w", encoding="utf-8") as f:
+        for item in exam_list:
+            f.write(item + "\n")
+
+@dp.message(Command(commands=["exam"]))
+async def send_exam(message: types.Message):
+    load_exam()  # загружаем актуальный список
+    if not exam_list:
+        await message.reply("❌ Список экзаменов пустой")
+        return
+
+    reply_text = "📝 Список экзаменов:\n\n"
+    for item in exam_list:
+        reply_text += f"• {item}\n"
+    await message.reply(reply_text)
+
+@dp.message(Command(commands=["addexam"]))
+async def addexam(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
+    text = message.text.replace("/addexam", "").strip()
+    if not text:
+        await message.reply("❌ Укажи название экзамена после команды.\nПример:\n/addexam Физкультура")
+        return
+
+    load_exam()
+    exam_list.append(text)
+    save_exam()
+    await message.reply(f"✅ Экзамен '{text}' добавлен в список.")
+
+@dp.message(Command(commands=["delexam"]))
+async def delexam(message: types.Message):
+    if not is_admin(message):
+        await message.reply("❌ У вас нет прав для этой команды", parse_mode=None)
+        return
+    text = message.text.replace("/delexam", "").strip()
+    if not text:
+        await message.reply("❌ Укажи название экзамена после команды.\nПример:\n/del_zachet История")
+        return
+
+    load_exam()
+    if text in exam_list:
+        exam_list.remove(text)
+        save_exam()
+        await message.reply(f"✅ Экзамен '{text}' удалён из списка.")
+    else:
+        await message.reply(f"❌ Экзамен '{text}' не найден в списке.")
+#зачетная тема
 @dp.message(Command(commands=["clear_zachety"]))
 async def clear_zachety(message: types.Message):
     if not is_admin(message):
@@ -556,6 +649,7 @@ async def send_help(message: types.Message):
         "🤖 Доступные команды бота:\n\n"
         "/schedule <числитель/знаменатель> — показать расписание на неделю\n"
         "/zachety — показать список зачётов\n"
+        "/exam — показать список зачётов\n"        
         "/help — показать это сообщение\n\n"
     )
     await message.reply(help_text)
