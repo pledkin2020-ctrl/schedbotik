@@ -1,8 +1,10 @@
 import asyncio
 import re
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import json
 from html import escape
+MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -164,7 +166,7 @@ async def del_chat(message: types.Message):
 # ------------------ Команда для проверки времени бота ------------------
 @dp.message(Command(commands=["time"]))
 async def bot_time(message: types.Message):
-    now = datetime.now()
+    now = datetime.now(MOSCOW_TZ)
     await message.reply(f"⏰ Текущее время бота: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 #заливаем авторассылку
 AUTOSEND_FILE = "autosend.json"
@@ -197,7 +199,7 @@ async def autosend_loop():
             await asyncio.sleep(30)
             continue
 
-        now = datetime.now()
+        now = datetime.now(MOSCOW_TZ)
         current_time = now.strftime("%H:%M")
         today_date = now.strftime("%Y-%m-%d")
 
@@ -379,7 +381,7 @@ from datetime import datetime
 
 def get_today_schedule():
     week = load_week()
-    today = datetime.now().strftime("%A").lower()
+    today = datetime.now(MOSCOW_TZ).strftime("%A").lower()
 
     days_map = {
         "monday": "понедельник",
@@ -401,9 +403,38 @@ def get_today_schedule():
     return f"📅 Сегодня ({day_ru})\n\n{lessons}"
 
 
+from datetime import datetime, timedelta
+
+def get_tomorrow_schedule():
+    week = load_week()
+
+    tomorrow = datetime.now(MOSCOW_TZ) + timedelta(days=1)
+    today_eng = tomorrow.strftime("%A").lower()
+
+    days_map = {
+        "monday": "понедельник",
+        "tuesday": "вторник",
+        "wednesday": "среда",
+        "thursday": "четверг",
+        "friday": "пятница",
+        "saturday": "суббота",
+        "sunday": "воскресенье",
+    }
+
+    day_ru = days_map.get(today_eng)
+
+    load_schedule()
+
+    lessons = schedule.get(week, {}).get(day_ru, "")
+
+    if not lessons:
+        return f"📅 Завтра ({day_ru})\nПар нет 🎉"
+
+    return f"📅 Завтра ({day_ru})\n\n{lessons}"
+
 async def daily_scheduler():
     while True:
-        now = datetime.now()
+        now = datetime.now(MOSCOW_TZ)
 
         # 07:00 — отправка расписания
         if now.time().hour == 7 and now.time().minute == 0:
@@ -430,7 +461,9 @@ async def daily_scheduler():
 async def today_cmd(message: types.Message):
     await message.reply(get_today_schedule(), parse_mode=None)
 
-
+@dp.message(Command("tomorrow"))
+async def tomorrow_cmd(message: types.Message):
+    await message.reply(get_tomorrow_schedule(), parse_mode=None)
 
 #система оповещений
 chats_to_notify = []
@@ -892,7 +925,7 @@ async def handle_message(message: Message):
         return
 
     date = match.group(1)
-    year = datetime.now().year
+    year = datetime.now(MOSCOW_TZ).year
     full_date = f"{date}.{year}"
 
     if full_date in schedule:
